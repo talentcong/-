@@ -1,0 +1,25 @@
+# 模型权重（16MB，可由 scripts/download_model.py 重新下载）
+models/
+
+# 抽样音频（约 28MB，可由 scripts/download_samples.py 重新下载）
+data/samples/
+
+# 合成测试信号（由 scripts/make_test_signals.py 生成）
+data/signals/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 编辑器
+.vscode/
+.idea/
+
+# 系统
+Thumbs.db
+desktop.ini
+
+# Office 临时文件
+~$*.docx
