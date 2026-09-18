@@ -60,7 +60,7 @@ def para(text: str) -> str:
     )
 
 
-def image_para(rel_id: str, name: str) -> str:
+def image_para(rel_id: str, path: Path, name: str) -> str:
     """按页面可用宽度等比缩放图片。
 
     页面 A4 宽 11906 DXA，左右边距各 1800，可用宽度 8306 DXA。
@@ -68,8 +68,7 @@ def image_para(rel_id: str, name: str) -> str:
     """
     import struct
 
-    data = CHART.read_bytes()
-    px_w, px_h = struct.unpack(">II", data[16:24])
+    px_w, px_h = struct.unpack(">II", path.read_bytes()[16:24])
 
     usable_dxa = 11906 - 1800 * 2
     cx = int(usable_dxa * 0.95 * 635)  # 1 DXA = 635 EMU
@@ -95,6 +94,13 @@ def _image_xml(rel_id: str, cx: int, cy: int, name: str) -> str:
     )
 
 
+IMAGES = {
+    "chart": ROOT / "data" / "out" / "threshold_sweep.png",
+    "coze": ROOT / "docs" / "images" / "coze_verification.png",
+}
+REL_IDS = {key: f"rId{100 + i}" for i, key in enumerate(IMAGES)}
+
+
 def build_body() -> str:
     import report_content as C
 
@@ -106,7 +112,9 @@ def build_body() -> str:
         elif kind == "blank":
             parts.append("<w:p/>")
         elif kind == "image":
-            parts.append(image_para("rId100", block[1]))
+            key = block[1]
+            parts.append(image_para(REL_IDS[key], IMAGES[key],
+                                    IMAGES[key].name))
     parts.append(SECTPR)
     return "".join(parts)
 
@@ -130,18 +138,21 @@ def main() -> int:
 
     media = work / "word" / "media"
     media.mkdir(exist_ok=True)
-    shutil.copy(CHART, media / "threshold_sweep.png")
-
     rels = work / "word" / "_rels" / "document.xml.rels"
     rels_xml = rels.read_text(encoding="utf-8")
-    if "rId100" not in rels_xml:
-        rels_xml = rels_xml.replace(
-            "</Relationships>",
-            '<Relationship Id="rId100" Type="http://schemas.openxmlformats.org/'
-            'officeDocument/2006/relationships/image" Target="media/threshold_sweep.png"/>'
-            "</Relationships>",
-        )
-        rels.write_text(rels_xml, encoding="utf-8")
+    for key, path in IMAGES.items():
+        if not path.exists():
+            raise SystemExit(f"缺少图片: {path}")
+        shutil.copy(path, media / path.name)
+        rel_id = REL_IDS[key]
+        if rel_id not in rels_xml:
+            rels_xml = rels_xml.replace(
+                "</Relationships>",
+                f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/'
+                f'officeDocument/2006/relationships/image" '
+                f'Target="media/{path.name}"/></Relationships>',
+            )
+    rels.write_text(rels_xml, encoding="utf-8")
 
     ct = work / "[Content_Types].xml"
     ct_xml = ct.read_text(encoding="utf-8")
