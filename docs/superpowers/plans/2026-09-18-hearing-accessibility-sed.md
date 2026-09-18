@@ -45,6 +45,7 @@
 | `scripts/detect.py` | 主流程：音频 → 事件 JSON |
 | `scripts/download_samples.py` | ESC-50 抽样片段下载 |
 | `scripts/evaluate.py` | 指标统计与图表绘制 |
+| `scripts/plot_results.py` | 从指标汇总 JSON 生成报告用图表 |
 | `tests/test_*.py` | 各模块单元测试 |
 | `data/out/` | 事件 JSON、指标表、图表 |
 | `docs/听障无障碍环境声音提示智能体实验报告.docx` | 最终交付物 |
@@ -60,12 +61,18 @@
 - [ ] **Step 1: 写 `requirements.txt`**
 
 ```
+# 推理引擎与数值计算：精确锁定。
+# 报告第五章的得分分布、命中率、阈值扫描数据都由这几个版本产生，
+# 浮动版本会让实验结果无法复现。
 onnxruntime==1.30.0
-numpy>=2.0
-scipy>=1.11
-pandas>=2.0
+numpy==2.4.6
+scipy==1.17.1
+
+# 绘图与文档生成：不参与数值计算，用下限约束即可
 matplotlib>=3.8
-requests>=2.31
+python-docx>=1.1
+
+# 测试
 pytest>=8.0
 ```
 
@@ -82,7 +89,7 @@ Expected: 成功安装 `onnxruntime-1.30.0`，无 "No matching distribution foun
 
 Run:
 ```bash
-python -c "import onnxruntime, numpy, scipy, pandas, matplotlib, pytest; print('onnxruntime', onnxruntime.__version__); print('all imports OK')"
+python -c "import onnxruntime, numpy, scipy, matplotlib, pytest, docx; print('onnxruntime', onnxruntime.__version__); print('all imports OK')"
 ```
 Expected:
 ```
@@ -2062,10 +2069,205 @@ Expected: 一张参数—命中率对照表。**这是报告第五章"阈值与�
 
 从扫描结果中选一组作为推荐参数，**必须在报告中写明选择依据**（是偏向召回还是偏向抑制误报），不得只给结论不给理由。
 
-- [ ] **Step 9: 提交**
+- [ ] **Step 9: 生成报告图表**
+
+**Files:**
+- Create: `scripts/plot_results.py`
+- Create: `tests/test_plot_results.py`
+
+先写失败的测试 `tests/test_plot_results.py`:
+
+```python
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+
+from plot_results import load_sweep
+
+
+def test_load_sweep_reads_threshold_and_minframes_dirs(tmp_path):
+    for name, rate in (("thr_0.10", 0.4), ("thr_0.50", 0.1)):
+        d = tmp_path / name
+        d.mkdir()
+        (d / "metrics_summary.json").write_text(
+            json.dumps({"total": 10, "hits": int(rate * 10), "hit_rate": rate}),
+            encoding="utf-8",
+        )
+    for name, rate in (("mf_1", 0.4), ("mf_3", 0.2)):
+        d = tmp_path / name
+        d.mkdir()
+        (d / "metrics_summary.json").write_text(
+            json.dumps({"total": 10, "hits": int(rate * 10), "hit_rate": rate}),
+            encoding="utf-8",
+        )
+
+    rows = load_sweep(tmp_path)
+    labels = [r["label"] for r in rows]
+    assert "threshold=0.10" in labels
+    assert "threshold=0.50" in labels
+    assert "min_frames=1" in labels
+    assert "min_frames=3" in labels
+
+
+def test_load_sweep_sorts_thresholds_numerically(tmp_path):
+    for name in ("thr_0.50", "thr_0.05", "thr_0.20"):
+        d = tmp_path / name
+        d.mkdir()
+        (d / "metrics_summary.json").write_text(
+            json.dumps({"total": 1, "hits": 1, "hit_rate": 1.0}), encoding="utf-8"
+        )
+    rows = load_sweep(tmp_path)
+    thresholds = [r["threshold"] for r in rows if r["kind"] == "threshold"]
+    assert thresholds == sorted(thresholds)
+
+
+def test_load_sweep_skips_missing_dirs(tmp_path):
+    assert load_sweep(tmp_path) == []
+```
+
+运行 `python -m pytest tests/test_plot_results.py -v` 确认失败（ModuleNotFoundError）。
+
+然后写实现 `scripts/plot_results.py`:
+
+```python
+"""从指标汇总 JSON 生成报告用图表。
+
+只负责读汇总结果与画图，不做指标计算——指标计算属于 evaluate.py。
+"""
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")  # 无界面环境也能出图
+import matplotlib.pyplot as plt  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_OUT = ROOT / "data" / "out"
+
+
+def load_sweep(out_dir: Path) -> list[dict]:
+    """读取 thr_* 与 mf_* 目录下的 metrics_summary.json。
+
+    返回按类别排序的列表，每项含 label / hit_rate / kind / threshold|min_frames。
+    """
+    rows: list[dict] = []
+
+    for path in sorted(out_dir.glob("thr_*/metrics_summary.json")):
+        name = path.parent.name
+        try:
+            threshold = float(name.split("_", 1)[1])
+        except (IndexError, ValueError):
+            continue
+        summary = json.loads(path.read_text(encoding="utf-8"))
+        rows.append({
+            "kind": "threshold",
+            "threshold": threshold,
+            "label": f"threshold={threshold:.2f}",
+            "hit_rate": summary["hit_rate"],
+            "hits": summary["hits"],
+            "total": summary["total"],
+        })
+
+    for path in sorted(out_dir.glob("mf_*/metrics_summary.json")):
+        name = path.parent.name
+        try:
+            min_frames = int(name.split("_", 1)[1])
+        except (IndexError, ValueError):
+            continue
+        summary = json.loads(path.read_text(encoding="utf-8"))
+        rows.append({
+            "kind": "min_frames",
+            "min_frames": min_frames,
+            "label": f"min_frames={min_frames}",
+            "hit_rate": summary["hit_rate"],
+            "hits": summary["hits"],
+            "total": summary["total"],
+        })
+
+    threshold_rows = sorted(
+        (r for r in rows if r["kind"] == "threshold"),
+        key=lambda r: r["threshold"],
+    )
+    frame_rows = sorted(
+        (r for r in rows if r["kind"] == "min_frames"),
+        key=lambda r: r["min_frames"],
+    )
+    return threshold_rows + frame_rows
+
+
+def plot_sweep(rows: list[dict], out_path: Path) -> Path:
+    """画阈值扫描曲线与去抖窗口对比柱状图。"""
+    threshold_rows = [r for r in rows if r["kind"] == "threshold"]
+    frame_rows = [r for r in rows if r["kind"] == "min_frames"]
+    if not threshold_rows and not frame_rows:
+        raise ValueError("没有可绘制的数据，请先运行 evaluate.py 的参数扫描")
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+
+    if threshold_rows:
+        axes[0].plot(
+            [r["threshold"] for r in threshold_rows],
+            [r["hit_rate"] for r in threshold_rows],
+            marker="o",
+        )
+        axes[0].set_xlabel("阈值 threshold")
+        axes[0].set_ylabel("事件级命中率")
+        axes[0].set_title("阈值对命中率的影响")
+        axes[0].grid(alpha=0.3)
+
+    if frame_rows:
+        axes[1].bar(
+            [str(r["min_frames"]) for r in frame_rows],
+            [r["hit_rate"] for r in frame_rows],
+        )
+        axes[1].set_xlabel("最少命中帧数 min_frames")
+        axes[1].set_ylabel("事件级命中率")
+        axes[1].set_title("去抖窗口对命中率的影响")
+        axes[1].grid(alpha=0.3, axis="y")
+
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return out_path
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="生成报告图表")
+    parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--figure", type=Path,
+                        default=DEFAULT_OUT / "threshold_sweep.png")
+    args = parser.parse_args(argv)
+
+    rows = load_sweep(args.out)
+    if not rows:
+        print(f"未找到扫描结果，请先运行 evaluate.py 的参数扫描", file=sys.stderr)
+        return 1
+    path = plot_sweep(rows, args.figure)
+    print(f"图表已生成: {path}")
+    for row in rows:
+        print(f"  {row['label']:<18} 命中率 {row['hit_rate']:.1%}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+运行 `python -m pytest tests/test_plot_results.py -v` 确认通过（3 passed）。
+
+然后实际出图：`python scripts/plot_results.py`
+Expected: 打印图表路径与各参数命中率，`data/out/threshold_sweep.png` 生成。
+
+- [ ] **Step 10: 提交**
 
 ```bash
-git add scripts/evaluate.py tests/test_evaluate.py
+git add scripts/evaluate.py tests/test_evaluate.py scripts/plot_results.py tests/test_plot_results.py
 git commit -m "添加 ESC-50 事件级命中率评估脚本"
 ```
 
@@ -2162,7 +2364,7 @@ git commit -m "记录 Coze 工作流搭建过程与粘贴样本输出"
 
 - [ ] **Step 3: 插入图表**
 
-至少包含：系统架构图、映射分级表、覆盖率统计表、命中率对比表、混淆矩阵、若干截图。
+至少包含：系统架构图、映射分级表、覆盖率统计表、命中率对比表、`data/out/threshold_sweep.png`（由 `scripts/plot_results.py` 生成）、若干 Coze 截图。
 
 - [ ] **Step 4: 校验交付物**
 
