@@ -1,3 +1,7 @@
+# Git worktree 隔离工作区
+.worktrees/
+worktrees/
+
 # 模型权重（16MB，可由 scripts/download_model.py 重新下载）
 models/
 
