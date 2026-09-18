@@ -49,13 +49,37 @@ def esc(text: str) -> str:
     return (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
+# 标题：宋体四号（14pt = w:sz 28 半磅）
+HEADING_RPR = (
+    '<w:rFonts w:hint="eastAsia" w:ascii="宋体" w:hAnsi="宋体" '
+    'w:eastAsia="宋体"/><w:sz w:val="28"/><w:szCs w:val="28"/>'
+)
+# 正文：仿宋小四（12pt = w:sz 24 半磅）
+BODY_RPR = (
+    '<w:rFonts w:hint="eastAsia" w:ascii="仿宋" w:hAnsi="仿宋" '
+    'w:eastAsia="仿宋"/><w:sz w:val="24"/><w:szCs w:val="24"/>'
+)
+
+HEADING_RE = (
+    re.compile(r"^[一二三四五六七八九]、"),
+    re.compile(r"^项目名称："),
+    re.compile(r"^实验场景\s*\d"),
+    re.compile(r"^\d+\.\d+\s"),
+)
+
+
+def is_heading(text: str) -> bool:
+    return any(p.match(text) for p in HEADING_RE)
+
+
 def para(text: str) -> str:
-    """素文本段落；空字符串产出空段落。"""
+    """半角/全角混排的素文本段落；空字符串产出空段落。"""
     if not text:
         return "<w:p/>"
+    rpr = HEADING_RPR if is_heading(text) else BODY_RPR
     return (
-        '<w:p><w:pPr><w:rPr><w:rFonts w:hint="eastAsia"/></w:rPr></w:pPr>'
-        f'<w:r><w:rPr><w:rFonts w:hint="eastAsia"/></w:rPr>'
+        f'<w:p><w:pPr><w:rPr>{rpr}</w:rPr></w:pPr>'
+        f'<w:r><w:rPr>{rpr}</w:rPr>'
         f'<w:t xml:space="preserve">{esc(text)}</w:t></w:r></w:p>'
     )
 
