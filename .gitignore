@@ -25,6 +25,11 @@ venv/
 .claude/
 .runtime/
 
+# 课程方提供的资料，非本人作品，不入公开仓库
+/《数字音频处理》coze插件整理v1.docx
+/音频智能体实验报告.bak.docx
+/音频智能体实验报告.docx
+
 # 系统
 Thumbs.db
 desktop.ini
