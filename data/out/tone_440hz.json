@@ -1,0 +1,28 @@
+{
+  "session_id": "tone_440hz",
+  "audio_file": "tone_440hz.wav",
+  "duration_sec": 3.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "phone_ring",
+      "name_cn": "电话铃声",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.969,
+      "audio_set_labels": [
+        "Telephone"
+      ]
+    },
+    {
+      "event_id": "alarm",
+      "name_cn": "警报器",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.8062,
+      "audio_set_labels": [
+        "Alarm"
+      ]
+    }
+  ]
+}

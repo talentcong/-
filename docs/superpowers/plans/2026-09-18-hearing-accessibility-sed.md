@@ -1647,6 +1647,7 @@ git commit -m "添加音频到事件 JSON 的主流程"
 
 `tests/test_download_samples.py`:
 ```python
+import socket
 import sys
 from pathlib import Path
 
@@ -1655,8 +1656,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from download_samples import (
     BASE_AUDIO_URL,
     HEARING_RELEVANT_CATEGORIES,
+    _force_ipv4,
+    parse_metadata,
     pick_filenames,
 )
+
+
+def test_parse_metadata_strips_wav_extension():
+    """ESC-50 的 filename 列自带 .wav 后缀，必须去掉，否则拼接会重复。"""
+    text = (
+        "filename,fold,target,category,esc10,src_file,take\n"
+        "1-100032-A-0.wav,1,0,dog,True,100032,A\n"
+        "5-210612-A-37.wav,5,37,siren,False,210612,A\n"
+    )
+    rows = parse_metadata(text)
+    assert rows[0]["filename"] == "1-100032-A-0"
+    assert rows[1]["filename"] == "5-210612-A-37"
+    assert rows[1]["category"] == "siren"
+
+
+def test_force_ipv4_restricts_address_family():
+    """在 _force_ipv4 上下文内，DNS 解析只能返回 IPv4。"""
+    with _force_ipv4():
+        infos = socket.getaddrinfo("localhost", 80)
+    assert infos
+    assert all(f[0] == socket.AF_INET for f in infos)
+
+
+def test_force_ipv4_restores_getaddrinfo():
+    """退出上下文后必须还原，不能污染全局状态。"""
+    original = socket.getaddrinfo
+    with _force_ipv4():
+        assert socket.getaddrinfo is not original
+    assert socket.getaddrinfo is original
 
 
 def test_base_url_is_github_raw():
@@ -1720,8 +1752,10 @@ ESC-50 整体为 CC BY-NC 3.0（署名—非商业），仅可用于教学，不
 import argparse
 import csv
 import io
+import socket
 import sys
 import urllib.request
+from contextlib import contextmanager
 from pathlib import Path
 
 BASE_AUDIO_URL = (
@@ -1754,13 +1788,49 @@ HEARING_RELEVANT_CATEGORIES = [
 EXPECTED_SAMPLE_BYTES = 441044
 
 
+@contextmanager
+def _force_ipv4():
+    """下载期间限制 DNS 解析只返回 IPv4。
+
+    本机到 raw.githubusercontent.com 的 4 个 IPv6 地址中有 3 个不可达
+    （实测超时），而 urllib 没有实现 Happy Eyeballs（RFC 8305），
+    会按 DNS 返回顺序逐个尝试，撞上不可达的 IPv6 就卡到超时。
+    表现为间歇性：落到可用地址时 0.1s 完成，落到死地址则约 40s 后失败。
+    curl 实现了地址竞速，因此同一 URL 用 curl 始终正常。
+    """
+    original = socket.getaddrinfo
+
+    def ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+        return original(host, port, socket.AF_INET, type, proto, flags)
+
+    socket.getaddrinfo = ipv4_only
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original
+
+
 def fetch_text(url: str, timeout: int = 60) -> str:
-    with urllib.request.urlopen(url, timeout=timeout) as resp:
-        return resp.read().decode("utf-8")
+    with _force_ipv4():
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            return resp.read().decode("utf-8")
+
+
+def parse_metadata(text: str) -> list[dict]:
+    """解析 ESC-50 标注文本。
+
+    注意：CSV 的 filename 列自带 .wav 后缀（如 1-100032-A-0.wav），
+    这里统一去掉后缀。全流程用「无后缀的文件名」标识一个片段，
+    拼接 URL 与本地路径时再补 .wav；不去掉会导致重复后缀而 404。
+    """
+    rows = list(csv.DictReader(io.StringIO(text)))
+    for row in rows:
+        row["filename"] = Path(row["filename"]).stem
+    return rows
 
 
 def load_metadata(url: str = META_URL) -> list[dict]:
-    return list(csv.DictReader(io.StringIO(fetch_text(url))))
+    return parse_metadata(fetch_text(url))
 
 
 def pick_filenames(rows: list[dict], categories: list[str],
@@ -1802,14 +1872,15 @@ def download_sample(filename: str, dest_dir: Path,
                     retries: int = 3) -> Path:
     """下载单个 wav。逐条重试，失败则抛错，不静默跳过。"""
     dest = dest_dir / f"{filename}.wav"
-    if dest.exists() and dest.stat().st_size > 0:
+    if dest.exists() and dest.stat().st_size == EXPECTED_SAMPLE_BYTES:
         return dest
     url = f"{BASE_AUDIO_URL}/{filename}.wav"
     last_error: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            with urllib.request.urlopen(url, timeout=60) as resp:
-                data = resp.read()
+            with _force_ipv4():
+                with urllib.request.urlopen(url, timeout=60) as resp:
+                    data = resp.read()
             if len(data) != EXPECTED_SAMPLE_BYTES:
                 raise RuntimeError(
                     f"大小异常: {len(data)} 字节，预期 {EXPECTED_SAMPLE_BYTES}"
@@ -2030,6 +2101,13 @@ def build_confusion(expected: list[str],
     return Counter(zip(expected, predicted))
 
 
+def _group_by(rows: list[dict], key: str) -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        grouped.setdefault(row[key], []).append(row)
+    return grouped
+
+
 def write_metrics(rows: list[dict], out_dir: Path) -> tuple[Path, Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     csv_path = out_dir / "metrics.csv"
@@ -2070,13 +2148,6 @@ def write_metrics(rows: list[dict], out_dir: Path) -> tuple[Path, Path, Path]:
             writer.writerow([expected, predicted, count])
 
     return csv_path, json_path, confusion_path
-
-
-def _group_by(rows: list[dict], key: str) -> dict[str, list[dict]]:
-    grouped: dict[str, list[dict]] = {}
-    for row in rows:
-        grouped.setdefault(row[key], []).append(row)
-    return grouped
 
 
 def load_manifest(samples_dir: Path) -> list[dict]:

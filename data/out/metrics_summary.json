@@ -1,0 +1,72 @@
+{
+  "total": 65,
+  "hits": 39,
+  "hit_rate": 0.6,
+  "per_category": {
+    "dog": {
+      "n": 5,
+      "hits": 3,
+      "hit_rate": 0.6
+    },
+    "vacuum_cleaner": {
+      "n": 5,
+      "hits": 5,
+      "hit_rate": 1.0
+    },
+    "thunderstorm": {
+      "n": 5,
+      "hits": 5,
+      "hit_rate": 1.0
+    },
+    "door_wood_knock": {
+      "n": 5,
+      "hits": 2,
+      "hit_rate": 0.4
+    },
+    "fireworks": {
+      "n": 5,
+      "hits": 3,
+      "hit_rate": 0.6
+    },
+    "church_bells": {
+      "n": 5,
+      "hits": 5,
+      "hit_rate": 1.0
+    },
+    "clock_alarm": {
+      "n": 5,
+      "hits": 2,
+      "hit_rate": 0.4
+    },
+    "car_horn": {
+      "n": 5,
+      "hits": 0,
+      "hit_rate": 0.0
+    },
+    "crying_baby": {
+      "n": 5,
+      "hits": 4,
+      "hit_rate": 0.8
+    },
+    "glass_breaking": {
+      "n": 5,
+      "hits": 0,
+      "hit_rate": 0.0
+    },
+    "washing_machine": {
+      "n": 5,
+      "hits": 5,
+      "hit_rate": 1.0
+    },
+    "siren": {
+      "n": 5,
+      "hits": 5,
+      "hit_rate": 1.0
+    },
+    "door_wood_creaks": {
+      "n": 5,
+      "hits": 0,
+      "hit_rate": 0.0
+    }
+  }
+}

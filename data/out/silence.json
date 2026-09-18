@@ -1,0 +1,7 @@
+{
+  "session_id": "silence",
+  "audio_file": "silence.wav",
+  "duration_sec": 3.0,
+  "max_level": 0,
+  "events": []
+}
