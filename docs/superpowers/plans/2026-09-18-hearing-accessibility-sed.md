@@ -194,7 +194,7 @@ def test_download_writes_dest_and_leaves_no_part(tmp_path, monkeypatch):
 
 
 def test_download_rejects_truncated_body(tmp_path, monkeypatch):
-    """响应被截断时必须报错并丢弃残file，而不是静默落盘。"""
+    """响应被截断时必须报错并丢弃残缺文件，而不是静默落盘。"""
     _patch_urlopen(monkeypatch, b"x" * 1000)
     dest = tmp_path / "m.onnx"
     with pytest.raises(RuntimeError, match="下载不完整"):
@@ -220,15 +220,28 @@ def test_download_cleans_part_when_read_raises(tmp_path, monkeypatch):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_download_skips_existing_nonempty_file(tmp_path, monkeypatch):
+def test_download_skips_existing_complete_file(tmp_path, monkeypatch):
+    payload = b"already here"
+
     def _unexpected(*args, **kwargs):
-        raise AssertionError("已存在的文件不应触发网络请求")
+        raise AssertionError("完整文件不应触发网络请求")
 
     monkeypatch.setattr(urllib.request, "urlopen", _unexpected)
     dest = tmp_path / "m.onnx"
-    dest.write_bytes(b"already here")
-    download("http://example.com/m.onnx", dest, expected_size=999)
-    assert dest.read_bytes() == b"already here"
+    dest.write_bytes(payload)
+    download("http://example.com/m.onnx", dest, expected_size=len(payload))
+    assert dest.read_bytes() == payload
+
+
+def test_download_redownloads_when_existing_size_is_wrong(tmp_path, monkeypatch):
+    """非空但残缺的既有文件必须被重新下载，而不是永久跳过。"""
+    payload = b"z" * 500
+    _patch_urlopen(monkeypatch, payload)
+    dest = tmp_path / "m.onnx"
+    dest.write_bytes(b"truncated")
+    download("http://example.com/m.onnx", dest, expected_size=len(payload))
+    assert dest.read_bytes() == payload
+    assert [p.name for p in tmp_path.iterdir()] == ["m.onnx"]
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -266,15 +279,20 @@ CLASS_MAP_SIZE = 14_096
 
 
 def download(url: str, dest: Path, expected_size: int) -> None:
-    """下载 url 到 dest。已存在且非空则跳过。
+    """下载 url 到 dest。dest 已存在且大小正确则跳过。
 
-    expected_size 用于完整性校验：HTTP 响应被提前截断时
-    http.client 不会抛异常（显式传 amt 给 read() 时它只返回空串），
-    若不校验，残缺文件会被永久缓存，并在后续任务中报出无关的错误。
+    expected_size 同时承担两个作用：
+    1) 校验新下载的完整性——HTTP 响应被提前截断时 http.client 不会抛异常
+       （显式传 amt 给 read() 时它只返回空串），不校验就会把残缺文件落盘；
+    2) 判断本地已有文件是否可信——只看"非空"识别不出残缺文件，
+       会让坏文件被永久跳过，并在后续任务中报出无关的错误。
     """
-    if dest.exists() and dest.stat().st_size > 0:
-        print(f"已存在，跳过: {dest.name}")
-        return
+    if dest.exists():
+        existing = dest.stat().st_size
+        if existing == expected_size:
+            print(f"已存在，跳过: {dest.name}")
+            return
+        print(f"已存在但大小不符（{existing} 字节，期望 {expected_size}），重新下载: {dest.name}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".part")
     print(f"下载 {url}")
@@ -330,7 +348,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_download_model.py -v`
-Expected: 6 passed
+Expected: 7 passed
 
 - [ ] **Step 5: 实际下载并校验**
 

@@ -69,7 +69,7 @@ def test_download_writes_dest_and_leaves_no_part(tmp_path, monkeypatch):
 
 
 def test_download_rejects_truncated_body(tmp_path, monkeypatch):
-    """响应被截断时必须报错并丢弃残file，而不是静默落盘。"""
+    """响应被截断时必须报错并丢弃残缺文件，而不是静默落盘。"""
     _patch_urlopen(monkeypatch, b"x" * 1000)
     dest = tmp_path / "m.onnx"
     with pytest.raises(RuntimeError, match="下载不完整"):
@@ -95,12 +95,25 @@ def test_download_cleans_part_when_read_raises(tmp_path, monkeypatch):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_download_skips_existing_nonempty_file(tmp_path, monkeypatch):
+def test_download_skips_existing_complete_file(tmp_path, monkeypatch):
+    payload = b"already here"
+
     def _unexpected(*args, **kwargs):
-        raise AssertionError("已存在的文件不应触发网络请求")
+        raise AssertionError("完整文件不应触发网络请求")
 
     monkeypatch.setattr(urllib.request, "urlopen", _unexpected)
     dest = tmp_path / "m.onnx"
-    dest.write_bytes(b"already here")
-    download("http://example.com/m.onnx", dest, expected_size=999)
-    assert dest.read_bytes() == b"already here"
+    dest.write_bytes(payload)
+    download("http://example.com/m.onnx", dest, expected_size=len(payload))
+    assert dest.read_bytes() == payload
+
+
+def test_download_redownloads_when_existing_size_is_wrong(tmp_path, monkeypatch):
+    """非空但残缺的既有文件必须被重新下载，而不是永久跳过。"""
+    payload = b"z" * 500
+    _patch_urlopen(monkeypatch, payload)
+    dest = tmp_path / "m.onnx"
+    dest.write_bytes(b"truncated")
+    download("http://example.com/m.onnx", dest, expected_size=len(payload))
+    assert dest.read_bytes() == payload
+    assert [p.name for p in tmp_path.iterdir()] == ["m.onnx"]

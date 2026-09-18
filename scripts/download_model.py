@@ -24,15 +24,20 @@ CLASS_MAP_SIZE = 14_096
 
 
 def download(url: str, dest: Path, expected_size: int) -> None:
-    """下载 url 到 dest。已存在且非空则跳过。
+    """下载 url 到 dest。dest 已存在且大小正确则跳过。
 
-    expected_size 用于完整性校验：HTTP 响应被提前截断时
-    http.client 不会抛异常（显式传 amt 给 read() 时它只返回空串），
-    若不校验，残缺文件会被永久缓存，并在后续任务中报出无关的错误。
+    expected_size 同时承担两个作用：
+    1) 校验新下载的完整性——HTTP 响应被提前截断时 http.client 不会抛异常
+       （显式传 amt 给 read() 时它只返回空串），不校验就会把残缺文件落盘；
+    2) 判断本地已有文件是否可信——只看"非空"识别不出残缺文件，
+       会让坏文件被永久跳过，并在后续任务中报出无关的错误。
     """
-    if dest.exists() and dest.stat().st_size > 0:
-        print(f"已存在，跳过: {dest.name}")
-        return
+    if dest.exists():
+        existing = dest.stat().st_size
+        if existing == expected_size:
+            print(f"已存在，跳过: {dest.name}")
+            return
+        print(f"已存在但大小不符（{existing} 字节，期望 {expected_size}），重新下载: {dest.name}")
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".part")
     print(f"下载 {url}")
