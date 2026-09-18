@@ -123,6 +123,7 @@ CONTENT = [
     ("p", "代码：scripts/ 下 11 个模块——场景一为 audio_io.py、yamnet_runner.py、probe_model.py；场景二为 event_mapping.py、decision.py；场景三为 detect.py；评估与出图为 evaluate.py、plot_results.py；数据获取为 download_model.py、download_samples.py、make_test_signals.py。"),
     ("p", "测试与数据：tests/ 下 10 个测试文件共 65 个用例；data/out/ 下为 metrics.csv、metrics_summary.json、confusion.csv、threshold_sweep.png；阈值扫描在 thr_*/、去抖扫描在 mf_*/、Coze 样本输入在 coze_samples/。"),
     ("p", "文档：设计文档与实施计划见 docs/superpowers/specs/ 与 docs/superpowers/plans/，Coze 验证记录见 docs/coze-paste-samples.md，验证截图见 docs/images/。"),
+    ("p", "为便于演示，另提供本地网页工具 scripts/serve_demo.py（仅用 Python 标准库，无 Web 框架依赖）。运行 python scripts/serve_demo.py 后在浏览器打开 http://127.0.0.1:8000 即可：左侧列出 65 条样本，点击任一可查看波形与频谱、识别出的事件及其紧急等级与置信度、发送给 Coze 的事件 JSON，以及该样本经 Coze 实测的提示文案；拖动阈值滑块可实时观察召回与误报的权衡。演示视频即以此页面为主。"),
     ("p", "模型权重（16 MB）与音频素材（约 28 MB）因体积与许可原因未纳入仓库，可分别运行 python scripts/download_model.py 与 python scripts/download_samples.py 重新获取。"),
     ("blank", ""),
 
