@@ -1,0 +1,28 @@
+{
+  "session_id": "2-106881-A-39",
+  "audio_file": "2-106881-A-39.wav",
+  "duration_sec": 5.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "fire",
+      "name_cn": "燃烧声",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.1637,
+      "audio_set_labels": [
+        "Fire"
+      ]
+    },
+    {
+      "event_id": "explosion",
+      "name_cn": "爆炸声",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.1072,
+      "audio_set_labels": [
+        "Explosion"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "session_id": "4-125070-A-19",
+  "audio_file": "4-125070-A-19.wav",
+  "duration_sec": 5.0,
+  "max_level": 2,
+  "events": [
+    {
+      "event_id": "thunder",
+      "name_cn": "雷声",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.4591,
+      "audio_set_labels": [
+        "Thunderstorm",
+        "Thunder"
+      ]
+    }
+  ]
+}

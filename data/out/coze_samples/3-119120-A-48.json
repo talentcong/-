@@ -1,0 +1,29 @@
+{
+  "session_id": "3-119120-A-48",
+  "audio_file": "3-119120-A-48.wav",
+  "duration_sec": 5.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "bang",
+      "name_cn": "爆响",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.3116,
+      "audio_set_labels": [
+        "Fireworks",
+        "Firecracker"
+      ]
+    },
+    {
+      "event_id": "explosion",
+      "name_cn": "爆炸声",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.3033,
+      "audio_set_labels": [
+        "Explosion"
+      ]
+    }
+  ]
+}

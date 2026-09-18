@@ -1,0 +1,19 @@
+{
+  "session_id": "2-107351-A-20",
+  "audio_file": "2-107351-A-20.wav",
+  "duration_sec": 5.0,
+  "max_level": 2,
+  "events": [
+    {
+      "event_id": "baby_cry",
+      "name_cn": "婴儿哭声",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.6769,
+      "audio_set_labels": [
+        "Crying, sobbing",
+        "Baby cry, infant cry"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "session_id": "3-144510-A-30",
+  "audio_file": "3-144510-A-30.wav",
+  "duration_sec": 5.0,
+  "max_level": 2,
+  "events": [
+    {
+      "event_id": "knock",
+      "name_cn": "敲门声",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.1504,
+      "audio_set_labels": [
+        "Knock"
+      ]
+    }
+  ]
+}

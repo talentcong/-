@@ -1,0 +1,29 @@
+{
+  "session_id": "5-117118-A-42",
+  "audio_file": "5-117118-A-42.wav",
+  "duration_sec": 5.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "siren",
+      "name_cn": "警报声",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.5088,
+      "audio_set_labels": [
+        "Siren",
+        "Civil defense siren"
+      ]
+    },
+    {
+      "event_id": "alarm",
+      "name_cn": "警报器",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.4773,
+      "audio_set_labels": [
+        "Alarm"
+      ]
+    }
+  ]
+}

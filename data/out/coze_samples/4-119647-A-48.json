@@ -1,0 +1,28 @@
+{
+  "session_id": "4-119647-A-48",
+  "audio_file": "4-119647-A-48.wav",
+  "duration_sec": 5.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "bang",
+      "name_cn": "爆响",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.4416,
+      "audio_set_labels": [
+        "Fireworks"
+      ]
+    },
+    {
+      "event_id": "explosion",
+      "name_cn": "爆炸声",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.4299,
+      "audio_set_labels": [
+        "Explosion"
+      ]
+    }
+  ]
+}

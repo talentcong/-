@@ -1,0 +1,18 @@
+{
+  "session_id": "4-175845-A-43",
+  "audio_file": "4-175845-A-43.wav",
+  "duration_sec": 5.0,
+  "max_level": 2,
+  "events": [
+    {
+      "event_id": "car_horn",
+      "name_cn": "汽车鸣笛",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.1487,
+      "audio_set_labels": [
+        "Vehicle horn, car horn, honking"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "session_id": "1-31482-A-42",
+  "audio_file": "1-31482-A-42.wav",
+  "duration_sec": 5.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "siren",
+      "name_cn": "警报声",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.2556,
+      "audio_set_labels": [
+        "Emergency vehicle",
+        "Police car (siren)",
+        "Fire engine, fire truck (siren)",
+        "Siren"
+      ]
+    },
+    {
+      "event_id": "alarm",
+      "name_cn": "警报器",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.2317,
+      "audio_set_labels": [
+        "Alarm"
+      ]
+    }
+  ]
+}

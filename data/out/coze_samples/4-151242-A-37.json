@@ -1,0 +1,59 @@
+{
+  "session_id": "4-151242-A-37",
+  "audio_file": "4-151242-A-37.wav",
+  "duration_sec": 5.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "alarm",
+      "name_cn": "警报器",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.5786,
+      "audio_set_labels": [
+        "Alarm"
+      ]
+    },
+    {
+      "event_id": "phone_ring",
+      "name_cn": "电话铃声",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.4794,
+      "audio_set_labels": [
+        "Telephone",
+        "Ringtone"
+      ]
+    },
+    {
+      "event_id": "alarm_clock",
+      "name_cn": "闹钟",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.433,
+      "audio_set_labels": [
+        "Alarm clock"
+      ]
+    },
+    {
+      "event_id": "beep",
+      "name_cn": "电子提示音",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.2965,
+      "audio_set_labels": [
+        "Beep, bleep"
+      ]
+    },
+    {
+      "event_id": "buzzer",
+      "name_cn": "蜂鸣器",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.1304,
+      "audio_set_labels": [
+        "Buzzer"
+      ]
+    }
+  ]
+}

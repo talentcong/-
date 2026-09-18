@@ -1,0 +1,20 @@
+{
+  "session_id": "5-179294-A-46",
+  "audio_file": "5-179294-A-46.wav",
+  "duration_sec": 5.0,
+  "max_level": 2,
+  "events": [
+    {
+      "event_id": "bell",
+      "name_cn": "铃声",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.7641,
+      "audio_set_labels": [
+        "Bell",
+        "Church bell",
+        "Change ringing (campanology)"
+      ]
+    }
+  ]
+}

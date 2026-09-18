@@ -1,0 +1,28 @@
+{
+  "session_id": "3-136288-A-0",
+  "audio_file": "3-136288-A-0.wav",
+  "duration_sec": 5.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "dog_bark",
+      "name_cn": "狗叫声",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.3206,
+      "audio_set_labels": [
+        "Dog"
+      ]
+    },
+    {
+      "event_id": "siren",
+      "name_cn": "警报声",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.1071,
+      "audio_set_labels": [
+        "Emergency vehicle"
+      ]
+    }
+  ]
+}

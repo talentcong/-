@@ -1,0 +1,18 @@
+{
+  "session_id": "5-221528-A-39",
+  "audio_file": "5-221528-A-39.wav",
+  "duration_sec": 5.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "glass_break",
+      "name_cn": "玻璃破碎",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.1686,
+      "audio_set_labels": [
+        "Glass"
+      ]
+    }
+  ]
+}

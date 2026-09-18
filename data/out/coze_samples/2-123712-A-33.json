@@ -1,0 +1,48 @@
+{
+  "session_id": "2-123712-A-33",
+  "audio_file": "2-123712-A-33.wav",
+  "duration_sec": 5.0,
+  "max_level": 1,
+  "events": [
+    {
+      "event_id": "buzzer",
+      "name_cn": "蜂鸣器",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.1686,
+      "audio_set_labels": [
+        "Buzzer"
+      ]
+    },
+    {
+      "event_id": "beep",
+      "name_cn": "电子提示音",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.1283,
+      "audio_set_labels": [
+        "Beep, bleep"
+      ]
+    },
+    {
+      "event_id": "alarm",
+      "name_cn": "警报器",
+      "level": 1,
+      "level_name": "危险",
+      "confidence": 0.1152,
+      "audio_set_labels": [
+        "Alarm"
+      ]
+    },
+    {
+      "event_id": "alarm_clock",
+      "name_cn": "闹钟",
+      "level": 2,
+      "level_name": "注意",
+      "confidence": 0.1006,
+      "audio_set_labels": [
+        "Alarm clock"
+      ]
+    }
+  ]
+}
