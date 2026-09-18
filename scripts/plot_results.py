@@ -12,6 +12,13 @@ import matplotlib
 matplotlib.use("Agg")  # 无界面环境也能出图
 import matplotlib.pyplot as plt  # noqa: E402
 
+# matplotlib 默认字体 DejaVu Sans 不含 CJK，中文标签会渲染成豆腐块。
+# 必须在画任何图之前设置。
+matplotlib.rcParams["font.sans-serif"] = [
+    "Microsoft YaHei", "SimHei", "DejaVu Sans",
+]
+matplotlib.rcParams["axes.unicode_minus"] = False
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT = ROOT / "data" / "out"
 

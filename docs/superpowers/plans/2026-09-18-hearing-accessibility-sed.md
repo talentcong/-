@@ -44,7 +44,7 @@
 | `scripts/make_test_signals.py` | 生成合成测试信号 |
 | `scripts/detect.py` | 主流程：音频 → 事件 JSON |
 | `scripts/download_samples.py` | ESC-50 抽样片段下载 |
-| `scripts/evaluate.py` | 指标统计与图表绘制 |
+| `scripts/evaluate.py` | 指标统计与混淆矩阵 |
 | `scripts/plot_results.py` | 从指标汇总 JSON 生成报告用图表 |
 | `tests/test_*.py` | 各模块单元测试 |
 | `data/out/` | 事件 JSON、指标表、图表 |
@@ -2026,7 +2026,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_evaluate.py -v`
-Expected: 6 passed
+Expected: 8 passed
 
 - [ ] **Step 5: 用默认阈值跑一次评估，确认链路通**
 
@@ -2084,7 +2084,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from plot_results import load_sweep
+from plot_results import load_sweep, plot_sweep
 
 
 def test_load_sweep_reads_threshold_and_minframes_dirs(tmp_path):
@@ -2125,6 +2125,33 @@ def test_load_sweep_sorts_thresholds_numerically(tmp_path):
 
 def test_load_sweep_skips_missing_dirs(tmp_path):
     assert load_sweep(tmp_path) == []
+
+
+def test_cjk_font_is_configured():
+    import matplotlib
+    import plot_results  # noqa: F401  触发模块级 rcParams 设置
+
+    font_list = matplotlib.rcParams["font.sans-serif"]
+    assert "Microsoft YaHei" in font_list or "SimHei" in font_list
+    assert matplotlib.rcParams["axes.unicode_minus"] is False
+
+
+def test_plot_sweep_renders_chinese_without_missing_glyphs(tmp_path):
+    """中文字形缺失时 matplotlib 会发 UserWarning，这里把它升级为错误。
+
+    若字体配置被误删，本测试会失败——这是对上面那条修复的回归保护。
+    """
+    import warnings
+
+    rows = [{
+        "kind": "threshold", "threshold": 0.10, "label": "threshold=0.10",
+        "hit_rate": 0.4, "hits": 4, "total": 10,
+    }]
+    out = tmp_path / "fig.png"
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        plot_sweep(rows, out)
+    assert out.exists() and out.stat().st_size > 0
 ```
 
 运行 `python -m pytest tests/test_plot_results.py -v` 确认失败（ModuleNotFoundError）。
@@ -2145,6 +2172,13 @@ import matplotlib
 
 matplotlib.use("Agg")  # 无界面环境也能出图
 import matplotlib.pyplot as plt  # noqa: E402
+
+# matplotlib 默认字体 DejaVu Sans 不含 CJK，中文标签会渲染成豆腐块。
+# 必须在画任何图之前设置。
+matplotlib.rcParams["font.sans-serif"] = [
+    "Microsoft YaHei", "SimHei", "DejaVu Sans",
+]
+matplotlib.rcParams["axes.unicode_minus"] = False
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT = ROOT / "data" / "out"
@@ -2268,7 +2302,10 @@ Expected: 打印图表路径与各参数命中率，`data/out/threshold_sweep.pn
 
 ```bash
 git add scripts/evaluate.py tests/test_evaluate.py scripts/plot_results.py tests/test_plot_results.py
-git commit -m "添加 ESC-50 事件级命中率评估脚本"
+git commit -m "添加评估脚本与报告图表生成
+
+- evaluate.py: ESC-50 事件级命中率统计
+- plot_results.py: 阈值与去抖参数的对比图表"
 ```
 
 ---
@@ -2364,7 +2401,7 @@ git commit -m "记录 Coze 工作流搭建过程与粘贴样本输出"
 
 - [ ] **Step 3: 插入图表**
 
-至少包含：系统架构图、映射分级表、覆盖率统计表、命中率对比表、`data/out/threshold_sweep.png`（由 `scripts/plot_results.py` 生成）、若干 Coze 截图。
+至少包含：系统架构图、映射分级表、覆盖率统计表、混淆矩阵（由 `build_confusion` 产出）、命中率对比表、`data/out/threshold_sweep.png`（由 `scripts/plot_results.py` 生成）、若干 Coze 截图。
 
 - [ ] **Step 4: 校验交付物**
 

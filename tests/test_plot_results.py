@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from plot_results import load_sweep
+from plot_results import load_sweep, plot_sweep
 
 
 def test_load_sweep_reads_threshold_and_minframes_dirs(tmp_path):
@@ -45,3 +45,30 @@ def test_load_sweep_sorts_thresholds_numerically(tmp_path):
 
 def test_load_sweep_skips_missing_dirs(tmp_path):
     assert load_sweep(tmp_path) == []
+
+
+def test_cjk_font_is_configured():
+    import matplotlib
+    import plot_results  # noqa: F401  触发模块级 rcParams 设置
+
+    font_list = matplotlib.rcParams["font.sans-serif"]
+    assert "Microsoft YaHei" in font_list or "SimHei" in font_list
+    assert matplotlib.rcParams["axes.unicode_minus"] is False
+
+
+def test_plot_sweep_renders_chinese_without_missing_glyphs(tmp_path):
+    """中文字形缺失时 matplotlib 会发 UserWarning，这里把它升级为错误。
+
+    若字体配置被误删，本测试会失败——这是对上面那条修复的回归保护。
+    """
+    import warnings
+
+    rows = [{
+        "kind": "threshold", "threshold": 0.10, "label": "threshold=0.10",
+        "hit_rate": 0.4, "hits": 4, "total": 10,
+    }]
+    out = tmp_path / "fig.png"
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        plot_sweep(rows, out)
+    assert out.exists() and out.stat().st_size > 0
