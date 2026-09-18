@@ -60,7 +60,24 @@ def para(text: str) -> str:
     )
 
 
-def image_para(rel_id: str, cx: int, cy: int, name: str) -> str:
+def image_para(rel_id: str, name: str) -> str:
+    """按页面可用宽度等比缩放图片。
+
+    页面 A4 宽 11906 DXA，左右边距各 1800，可用宽度 8306 DXA。
+    取 95% 留少量余量，避免图片溢出到页边距之外。
+    """
+    import struct
+
+    data = CHART.read_bytes()
+    px_w, px_h = struct.unpack(">II", data[16:24])
+
+    usable_dxa = 11906 - 1800 * 2
+    cx = int(usable_dxa * 0.95 * 635)  # 1 DXA = 635 EMU
+    cy = int(cx * px_h / px_w)
+    return _image_xml(rel_id, cx, cy, name)
+
+
+def _image_xml(rel_id: str, cx: int, cy: int, name: str) -> str:
     return (
         '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing>'
         f'<wp:inline distT="0" distB="0" distL="0" distR="0">'
@@ -89,7 +106,7 @@ def build_body() -> str:
         elif kind == "blank":
             parts.append("<w:p/>")
         elif kind == "image":
-            parts.append(image_para("rId100", 6_400_000, 2_330_000, block[1]))
+            parts.append(image_para("rId100", block[1]))
     parts.append(SECTPR)
     return "".join(parts)
 
