@@ -124,11 +124,19 @@ git commit -m "添加项目依赖清单"
 `tests/test_download_model.py`:
 ```python
 import sys
+import urllib.request
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from download_model import parse_class_map, MODEL_URL, CLASS_MAP_URL
+from download_model import (
+    CLASS_MAP_URL,
+    MODEL_URL,
+    download,
+    parse_class_map,
+)
 
 
 def test_urls_use_hf_mirror():
@@ -151,6 +159,76 @@ def test_parse_class_map_reads_index_and_display_name(tmp_path):
     assert result[0] == "Speech"
     assert result[349] == "Doorbell"
     assert result[393] == "Smoke detector, smoke alarm"
+
+
+class _FakeResponse:
+    """模拟 urllib 响应对象，逐块吐出预置数据。"""
+
+    def __init__(self, data: bytes):
+        self._data = data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+    def read(self, size=-1):
+        chunk, self._data = self._data[:size], self._data[size:]
+        return chunk
+
+
+def _patch_urlopen(monkeypatch, data: bytes) -> None:
+    monkeypatch.setattr(
+        urllib.request, "urlopen", lambda *a, **k: _FakeResponse(data)
+    )
+
+
+def test_download_writes_dest_and_leaves_no_part(tmp_path, monkeypatch):
+    payload = b"abc" * 100
+    _patch_urlopen(monkeypatch, payload)
+    dest = tmp_path / "m.onnx"
+    download("http://example.com/m.onnx", dest, expected_size=len(payload))
+    assert dest.read_bytes() == payload
+    assert [p.name for p in tmp_path.iterdir()] == ["m.onnx"]
+
+
+def test_download_rejects_truncated_body(tmp_path, monkeypatch):
+    """响应被截断时必须报错并丢弃残file，而不是静默落盘。"""
+    _patch_urlopen(monkeypatch, b"x" * 1000)
+    dest = tmp_path / "m.onnx"
+    with pytest.raises(RuntimeError, match="下载不完整"):
+        download("http://example.com/m.onnx", dest, expected_size=16124200)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_download_cleans_part_when_read_raises(tmp_path, monkeypatch):
+    class _Boom:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc_info):
+            return False
+
+        def read(self, size=-1):
+            raise OSError("connection reset")
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: _Boom())
+    dest = tmp_path / "m.onnx"
+    with pytest.raises(RuntimeError, match="下载失败"):
+        download("http://example.com/m.onnx", dest, expected_size=10)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_download_skips_existing_nonempty_file(tmp_path, monkeypatch):
+    def _unexpected(*args, **kwargs):
+        raise AssertionError("已存在的文件不应触发网络请求")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _unexpected)
+    dest = tmp_path / "m.onnx"
+    dest.write_bytes(b"already here")
+    download("http://example.com/m.onnx", dest, expected_size=999)
+    assert dest.read_bytes() == b"already here"
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -183,10 +261,17 @@ MODEL_PATH = MODELS_DIR / "yamnet.onnx"
 CLASS_MAP_PATH = MODELS_DIR / "yamnet_class_map.csv"
 
 EXPECTED_CLASS_COUNT = 521
+MODEL_SIZE = 16_124_200
+CLASS_MAP_SIZE = 14_096
 
 
-def download(url: str, dest: Path) -> None:
-    """下载 url 到 dest。已存在且非空则跳过。"""
+def download(url: str, dest: Path, expected_size: int) -> None:
+    """下载 url 到 dest。已存在且非空则跳过。
+
+    expected_size 用于完整性校验：HTTP 响应被提前截断时
+    http.client 不会抛异常（显式传 amt 给 read() 时它只返回空串），
+    若不校验，残缺文件会被永久缓存，并在后续任务中报出无关的错误。
+    """
     if dest.exists() and dest.stat().st_size > 0:
         print(f"已存在，跳过: {dest.name}")
         return
@@ -203,6 +288,15 @@ def download(url: str, dest: Path) -> None:
             f"下载失败: {url}\n原因: {exc}\n"
             f"请检查网络；若 hf-mirror.com 不可用，可手动下载后放到 {dest}"
         ) from exc
+
+    actual_size = tmp.stat().st_size
+    if actual_size != expected_size:
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"下载不完整: {url}\n"
+            f"期望 {expected_size} 字节，实际 {actual_size} 字节\n"
+            f"文件已丢弃，请重新运行本脚本"
+        )
     tmp.replace(dest)
 
 
@@ -213,8 +307,8 @@ def parse_class_map(path: Path) -> dict[int, str]:
 
 
 def main() -> int:
-    download(MODEL_URL, MODEL_PATH)
-    download(CLASS_MAP_URL, CLASS_MAP_PATH)
+    download(MODEL_URL, MODEL_PATH, MODEL_SIZE)
+    download(CLASS_MAP_URL, CLASS_MAP_PATH, CLASS_MAP_SIZE)
 
     mapping = parse_class_map(CLASS_MAP_PATH)
     if len(mapping) != EXPECTED_CLASS_COUNT:
@@ -236,7 +330,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: 运行测试确认通过**
 
 Run: `python -m pytest tests/test_download_model.py -v`
-Expected: 2 passed
+Expected: 6 passed
 
 - [ ] **Step 5: 实际下载并校验**
 
