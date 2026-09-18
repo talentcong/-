@@ -124,6 +124,31 @@ IMAGES = {
 }
 REL_IDS = {key: f"rId{100 + i}" for i, key in enumerate(IMAGES)}
 
+HYPERLINKS = {
+    "github": "https://github.com/talentcong/-",
+}
+LINK_REL_IDS = {key: f"rId{200 + i}" for i, key in enumerate(HYPERLINKS)}
+
+# 链接文字：仿宋小四 + 蓝色下划线，不依赖模板中的 Hyperlink 样式
+LINK_RPR = (
+    '<w:rFonts w:hint="eastAsia" w:ascii="仿宋" w:hAnsi="仿宋" w:eastAsia="仿宋"/>'
+    '<w:sz w:val="24"/><w:szCs w:val="24"/>'
+    '<w:color w:val="0563C1"/><w:u w:val="single"/>'
+)
+
+
+def link_para(prefix: str, key: str) -> str:
+    """正文段落，内含一个可点击的外部超链接。"""
+    url = HYPERLINKS[key]
+    return (
+        f'<w:p><w:pPr><w:rPr>{BODY_RPR}</w:rPr></w:pPr>'
+        f'<w:r><w:rPr>{BODY_RPR}</w:rPr>'
+        f'<w:t xml:space="preserve">{esc(prefix)}</w:t></w:r>'
+        f'<w:hyperlink r:id="{LINK_REL_IDS[key]}">'
+        f'<w:r><w:rPr>{LINK_RPR}</w:rPr>'
+        f'<w:t xml:space="preserve">{esc(url)}</w:t></w:r></w:hyperlink></w:p>'
+    )
+
 
 def build_body() -> str:
     import report_content as C
@@ -139,6 +164,8 @@ def build_body() -> str:
             key = block[1]
             parts.append(image_para(REL_IDS[key], IMAGES[key],
                                     IMAGES[key].name))
+        elif kind == "link":
+            parts.append(link_para(block[1], block[2]))
     parts.append(SECTPR)
     return "".join(parts)
 
@@ -175,6 +202,15 @@ def main() -> int:
                 f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/'
                 f'officeDocument/2006/relationships/image" '
                 f'Target="media/{path.name}"/></Relationships>',
+            )
+    for key, url in HYPERLINKS.items():
+        rel_id = LINK_REL_IDS[key]
+        if rel_id not in rels_xml:
+            rels_xml = rels_xml.replace(
+                "</Relationships>",
+                f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/'
+                f'officeDocument/2006/relationships/hyperlink" '
+                f'Target="{url}" TargetMode="External"/></Relationships>',
             )
     rels.write_text(rels_xml, encoding="utf-8")
 
