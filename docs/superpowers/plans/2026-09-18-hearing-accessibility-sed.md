@@ -1824,15 +1824,22 @@ def test_build_confusion_counts_pairs():
     assert matrix[("siren", "dog_bark")] == 1
 
 
-def test_write_metrics_outputs_csv_and_json(tmp_path):
+def test_write_metrics_outputs_csv_json_and_confusion(tmp_path):
     rows = [
         {"filename": "a", "category": "siren",
          "expected_event": "siren", "predicted_event": "siren",
          "confidence": 0.8, "hit": True},
+        {"filename": "b", "category": "dog",
+         "expected_event": "dog_bark", "predicted_event": "knock",
+         "confidence": 0.6, "hit": False},
     ]
-    csv_path, json_path = write_metrics(rows, tmp_path)
-    assert csv_path.exists() and json_path.exists()
-    assert "siren" in csv_path.read_text(encoding="utf-8")
+    csv_path, json_path, confusion_path = write_metrics(rows, tmp_path)
+    assert csv_path.exists() and json_path.exists() and confusion_path.exists()
+
+    text = confusion_path.read_text(encoding="utf-8")
+    assert "expected_event,predicted_event,count" in text
+    assert "siren,siren,1" in text
+    assert "dog_bark,knock,1" in text
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -1905,7 +1912,7 @@ def build_confusion(expected: list[str],
     return Counter(zip(expected, predicted))
 
 
-def write_metrics(rows: list[dict], out_dir: Path) -> tuple[Path, Path]:
+def write_metrics(rows: list[dict], out_dir: Path) -> tuple[Path, Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     csv_path = out_dir / "metrics.csv"
     fieldnames = ["filename", "category", "expected_event",
@@ -1932,7 +1939,19 @@ def write_metrics(rows: list[dict], out_dir: Path) -> tuple[Path, Path]:
     json_path.write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    return csv_path, json_path
+
+    confusion = build_confusion(
+        [r["expected_event"] for r in rows],
+        [r["predicted_event"] for r in rows],
+    )
+    confusion_path = out_dir / "confusion.csv"
+    with open(confusion_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["expected_event", "predicted_event", "count"])
+        for (expected, predicted), count in sorted(confusion.items()):
+            writer.writerow([expected, predicted, count])
+
+    return csv_path, json_path, confusion_path
 
 
 def _group_by(rows: list[dict], key: str) -> dict[str, list[dict]]:
@@ -2009,13 +2028,14 @@ def main(argv: list[str] | None = None) -> int:
               f"预期={expected:<12} 预测={predicted or '(无)':<12} "
               f"{'✓' if predicted == expected else '✗'}")
 
-    csv_path, json_path = write_metrics(rows, args.out)
+    csv_path, json_path, confusion_path = write_metrics(rows, args.out)
     total = len(rows)
     hits = sum(1 for r in rows if r["hit"])
     rate = hits / total if total else 0.0
     print(f"\n总计 {total} 条，命中 {hits} 条，事件级命中率 {rate:.1%}")
     print(f"明细: {csv_path}")
     print(f"汇总: {json_path}")
+    print(f"混淆矩阵: {confusion_path}")
     return 0
 
 
@@ -2280,7 +2300,7 @@ def main(argv: list[str] | None = None) -> int:
 
     rows = load_sweep(args.out)
     if not rows:
-        print(f"未找到扫描结果，请先运行 evaluate.py 的参数扫描", file=sys.stderr)
+        print("未找到扫描结果，请先运行 evaluate.py 的参数扫描", file=sys.stderr)
         return 1
     path = plot_sweep(rows, args.figure)
     print(f"图表已生成: {path}")
@@ -2293,7 +2313,7 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-运行 `python -m pytest tests/test_plot_results.py -v` 确认通过（3 passed）。
+运行 `python -m pytest tests/test_plot_results.py -v` 确认通过（5 passed）。
 
 然后实际出图：`python scripts/plot_results.py`
 Expected: 打印图表路径与各参数命中率，`data/out/threshold_sweep.png` 生成。

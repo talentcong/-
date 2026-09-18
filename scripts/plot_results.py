@@ -119,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
 
     rows = load_sweep(args.out)
     if not rows:
-        print(f"未找到扫描结果，请先运行 evaluate.py 的参数扫描", file=sys.stderr)
+        print("未找到扫描结果，请先运行 evaluate.py 的参数扫描", file=sys.stderr)
         return 1
     path = plot_sweep(rows, args.figure)
     print(f"图表已生成: {path}")
